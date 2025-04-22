@@ -1,103 +1,159 @@
-import Image from "next/image";
+'use client';
+import { useEffect, useRef, useState } from 'react';
 
-export default function Home() {
+type Position = { x: number; y: number };
+
+const GRID_SIZE = 20;
+const GAME_SPEED = 300; // 初始速度调低一倍
+
+export default function SnakeGame() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }]);
+  const [food, setFood] = useState<Position>({ x: 15, y: 15 });
+  const [direction, setDirection] = useState<{ x: 1, y: 0 } | { x: -1, y: 0 } | { x: 0, y: 1 } | { x: 0, y: -1 }>({ x: 1, y: 0 });
+  const [gameOver, setGameOver] = useState(false);
+  const [score, setScore] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowUp':
+          if (direction.y === 0) setDirection({ x: 0, y: -1 });
+          break;
+        case 'ArrowDown':
+          if (direction.y === 0) setDirection({ x: 0, y: 1 });
+          break;
+        case 'ArrowLeft':
+          if (direction.x === 0) setDirection({ x: -1, y: 0 });
+          break;
+        case 'ArrowRight':
+          if (direction.x === 0) setDirection({ x: 1, y: 0 });
+          break;
+        case ' ':
+          setIsPaused(prev => !prev);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [direction]);
+
+  useEffect(() => {
+    if (gameOver || isPaused) return;
+
+    const gameLoop = setInterval(() => {
+      setSnake(prevSnake => {
+        const newSnake = [...prevSnake];
+        const head = { ...newSnake[0] };
+        
+        head.x += direction.x;
+        head.y += direction.y;
+
+        // 边界检测
+        if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+          setGameOver(true);
+          return prevSnake;
+        }
+
+        // 自我碰撞检测
+        if (newSnake.some(segment => segment.x === head.x && segment.y === head.y)) {
+          setGameOver(true);
+          return prevSnake;
+        }
+
+        newSnake.unshift(head);
+
+        // 食物检测
+        if (head.x === food.x && head.y === food.y) {
+          setScore(s => s + 1);
+          setFood({
+            x: Math.floor(Math.random() * GRID_SIZE),
+            y: Math.floor(Math.random() * GRID_SIZE)
+          });
+        } else {
+          newSnake.pop();
+        }
+
+        return newSnake;
+      });
+    }, GAME_SPEED);
+
+    return () => clearInterval(gameLoop);
+  }, [direction, food, gameOver]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 设置画布尺寸
+    const cellSize = Math.min(window.innerWidth * 0.8 / GRID_SIZE, 30);
+    canvas.width = GRID_SIZE * cellSize;
+    canvas.height = GRID_SIZE * cellSize;
+
+    // 清空画布
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 绘制食物
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(food.x * cellSize, food.y * cellSize, cellSize - 1, cellSize - 1);
+
+    // 绘制蛇
+    ctx.fillStyle = '#4CAF50';
+    snake.forEach((segment, index) => {
+      const alpha = 1 - index * 0.1;
+      ctx.fillStyle = `rgba(76, 175, 80, ${alpha})`;
+      ctx.fillRect(segment.x * cellSize, segment.y * cellSize, cellSize - 1, cellSize - 1);
+    });
+
+  }, [snake, food]);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      <div className="mb-4 text-2xl font-bold text-gray-800">得分: {score}</div>
+      <div className="mb-4 text-gray-600 text-sm">
+        <p>操作说明：</p>
+        <ul className="list-disc list-inside">
+          <li>方向键 ←↑→↓ 控制移动</li>
+          <li>空格键 暂停/继续</li>
+          <li>吃到红色食物得分+1</li>
+          <li>撞墙或自身游戏结束</li>
+        </ul>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="bg-white rounded-lg shadow-lg"
+        style={{ border: '2px solid #4CAF50' }}
+      />
+      <div className="mt-4 space-y-2 text-center">
+        {isPaused && (
+          <div className="text-blue-600 text-lg">游戏暂停中（按空格键继续）</div>
+        )}
+        {gameOver ? (
+          <>
+            <div className="text-red-600 text-xl font-bold">游戏结束！</div>
+            <button
+              onClick={() => {
+                setSnake([{ x: 10, y: 10 }]);
+                setFood({ x: 15, y: 15 });
+                setDirection({ x: 1, y: 0 });
+                setGameOver(false);
+                setScore(0);
+                setIsPaused(false);
+              }}
+              className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+            >
+              重新开始
+            </button>
+          </>
+        ) : (
+          <div className="text-gray-500 text-sm">按空格键暂停/继续</div>
+        )}
+      </div>
     </div>
   );
 }
