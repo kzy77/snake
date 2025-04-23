@@ -131,7 +131,19 @@ export default function SnakeGame() {
     };
 
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    // 添加鼠标和触摸事件监听器
+    canvasRef.current?.addEventListener('mousedown', handleMouseDown);
+    canvasRef.current?.addEventListener('mouseup', handleMouseUp);
+    canvasRef.current?.addEventListener('touchstart', handleTouchStart);
+    canvasRef.current?.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      canvasRef.current?.removeEventListener('mousedown', handleMouseDown);
+      canvasRef.current?.removeEventListener('mouseup', handleMouseUp);
+      canvasRef.current?.removeEventListener('touchstart', handleTouchStart);
+      canvasRef.current?.removeEventListener('touchend', handleTouchEnd);
+    };
   }, [gameOver, showNameInput]); // 依赖 gameOver 和 showNameInput 以控制暂停键的有效性
 
   // 游戏主循环
@@ -274,9 +286,68 @@ export default function SnakeGame() {
     }
   };
 
+
+  // 鼠标按下事件处理函数
+  const handleMouseDown = (e: MouseEvent) => {
+   const canvas = canvasRef.current;
+   if (!canvas) return;
+
+   const rect = canvas.getBoundingClientRect();
+   const x = e.clientX - rect.left;
+   const y = e.clientY - rect.top;
+
+   const gridX = Math.floor(x / CELL_SIZE);
+   const gridY = Math.floor(y / CELL_SIZE);
+
+   updateDirection(gridX, gridY);
+  };
+
+  // 鼠标释放事件处理函数
+  const handleMouseUp = (e: MouseEvent) => {
+    // 鼠标释放时，不改变方向
+  };
+
+  // 触摸开始事件处理函数
+  const handleTouchStart = (e: TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.touches[0].clientX - rect.left;
+    const y = e.touches[0].clientY - rect.top;
+
+    const gridX = Math.floor(x / CELL_SIZE);
+    const gridY = Math.floor(y / CELL_SIZE);
+
+    updateDirection(gridX, gridY);
+  };
+
+  // 触摸结束事件处理函数
+  const handleTouchEnd = (e: TouchEvent) => {
+    // 触摸结束时，不改变方向
+  };
+
+  const updateDirection = (gridX: number, gridY: number) => {
+    const head = snake[0];
+
+    let newDirection = directionRef.current;
+
+    if (gridX < head.x && directionRef.current.x === 0) {
+      newDirection = { x: -1, y: 0 };
+    } else if (gridX > head.x && directionRef.current.x === 0) {
+      newDirection = { x: 1, y: 0 };
+    } else if (gridY < head.y && directionRef.current.y === 0) {
+      newDirection = { x: 0, y: -1 };
+    } else if (gridY > head.y && directionRef.current.y === 0) {
+      newDirection = { x: 0, y: 1 };
+    }
+
+    setDirection(newDirection);
+    directionRef.current = newDirection;
+  };
+
   return (
     <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center min-h-screen bg-gray-800 text-gray-100 p-4 lg:p-8 space-y-4 lg:space-y-0 lg:space-x-8">
-
       {/* 玩家姓名输入弹窗 */}
       {showNameInput && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -367,7 +438,6 @@ export default function SnakeGame() {
           </ul>
         )}
       </div>
-
     </div>
   );
 }
