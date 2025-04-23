@@ -286,22 +286,6 @@ export default function SnakeGame() {
     }
   };
 
-
-  // 鼠标按下事件处理函数
-  const handleMouseDown = (e: MouseEvent) => {
-   const canvas = canvasRef.current;
-   if (!canvas) return;
-
-   const rect = canvas.getBoundingClientRect();
-   const x = e.clientX - rect.left;
-   const y = e.clientY - rect.top;
-
-   const gridX = Math.floor(x / CELL_SIZE);
-   const gridY = Math.floor(y / CELL_SIZE);
-
-   updateDirection(gridX, gridY);
-  };
-
   // 鼠标释放事件处理函数
   const handleMouseUp = (e: MouseEvent) => {
     // 鼠标释放时，不改变方向
@@ -337,13 +321,66 @@ export default function SnakeGame() {
     } else if (gridX > head.x && directionRef.current.x === 0) {
       newDirection = { x: 1, y: 0 };
     } else if (gridY < head.y && directionRef.current.y === 0) {
-      newDirection = { x: 0, y: -1 };
-    } else if (gridY > head.y && directionRef.current.y === 0) {
       newDirection = { x: 0, y: 1 };
+    } else if (gridY > head.y && directionRef.current.y === 0) {
+      newDirection = { x: 0, y: -1 };
     }
 
     setDirection(newDirection);
     directionRef.current = newDirection;
+  };
+
+  // 鼠标按下事件处理函数
+  const handleMouseDown = (e: MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    let startX = e.clientX - rect.left;
+    let startY = e.clientY - rect.top;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const currentX = e.clientX - rect.left;
+      const currentY = e.clientY - rect.top;
+
+      const deltaX = currentX - startX;
+      const deltaY = currentY - startY;
+
+      let newDirection = directionRef.current;
+
+      // 减少方向改变的阈值
+      const threshold = 5;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
+        // 水平滑动
+        if (deltaX > 0 && directionRef.current.x === 0) {
+          newDirection = { x: 1, y: 0 }; // 向右
+        } else if (deltaX < 0 && directionRef.current.x === 0) {
+          newDirection = { x: -1, y: 0 }; // 向左
+        }
+      } else if (Math.abs(deltaY) > threshold) {
+        // 垂直滑动
+        if (deltaY > 0 && directionRef.current.y === 0) {
+          newDirection = { x: 0, y: 1 }; // 向下
+        } else if (deltaY < 0 && directionRef.current.y === 0) {
+          newDirection = { x: 0, y: -1 }; // 向上
+        }
+      }
+
+      setDirection(newDirection);
+      directionRef.current = newDirection;
+
+      startX = currentX;
+      startY = currentY;
+    };
+
+    const handleMouseUp = () => {
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
   };
 
   return (
